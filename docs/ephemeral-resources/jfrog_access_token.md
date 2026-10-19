@@ -3,19 +3,25 @@
 page_title: "pgsauth_jfrog_access_token Ephemeral Resource - pgsauth"
 subcategory: ""
 description: |-
-  Issue an Azure AD ID token or SPIRE JWT-SVID and exchange it for a JFrog access token at https://jfrog.pubg.io.
+  Issue an Azure AD ID token or SPIFFE JWT-SVID and exchange it for a JFrog access token at https://jfrog.pubg.io.
+  The provider selects Azure AD when pubg-auth is available, and SPIFFE only when the default CLI is absent from PATH. With Azure AD, exactly one of azuread_audience, azuread_audience_discovery_url, or azuread_audience_registry_name is required. With SPIFFE, spiffe_audience is required; it is never used to resolve an Azure AD audience. Configure both routes to use the same HCL locally and in CI.
+  The three Azure AD selectors are mutually exclusive even when SPIFFE is selected: there is no priority or fallback between them. The selected value is passed to pubg-auth, which owns discovery, registry resolution, and caching. Authentication failure does not switch routes. Inputs must be known before token acquisition; configured blank inputs are rejected.
 ---
 
 # pgsauth_jfrog_access_token (Ephemeral Resource)
 
-Issue an Azure AD ID token or SPIRE JWT-SVID and exchange it for a JFrog access token at https://jfrog.pubg.io.
+Issue an Azure AD ID token or SPIFFE JWT-SVID and exchange it for a JFrog access token at https://jfrog.pubg.io.
+
+The provider selects Azure AD when pubg-auth is available, and SPIFFE only when the default CLI is absent from PATH. With Azure AD, exactly one of azuread_audience, azuread_audience_discovery_url, or azuread_audience_registry_name is required. With SPIFFE, spiffe_audience is required; it is never used to resolve an Azure AD audience. Configure both routes to use the same HCL locally and in CI.
+
+The three Azure AD selectors are mutually exclusive even when SPIFFE is selected: there is no priority or fallback between them. The selected value is passed to pubg-auth, which owns discovery, registry resolution, and caching. Authentication failure does not switch routes. Inputs must be known before token acquisition; configured blank inputs are rejected.
 
 ## Example Usage
 
 ```terraform
 ephemeral "pgsauth_jfrog_access_token" "this" {
-  spire_audience                  = "jfrog.pubg.io"
-  azuread_client_id_registry_name = "jfrog"
+  spiffe_audience                = "jfrog.pubg.io"
+  azuread_audience_registry_name = "jfrog"
 }
 ```
 
@@ -24,12 +30,12 @@ ephemeral "pgsauth_jfrog_access_token" "this" {
 
 ### Optional
 
-- `azuread_client_id` (String) Azure AD client ID passed directly to pubg-auth. Set at most one Azure AD selector.
-- `azuread_client_id_discovery_url` (String) Service discovery URL passed to pubg-auth to resolve the Azure AD client ID.
-- `azuread_client_id_registry_name` (String) Registry name passed to pubg-auth to resolve the Azure AD client ID. Registry configuration is owned by the CLI.
-- `spire_audience` (String) Audience required when using SPIRE. Not used by Azure AD.
+- `azuread_audience` (String) Application (client) ID of an existing Azure AD app registration, as a GUID, passed directly to pubg-auth. Azure AD issues the ID token with this client ID as its audience. Do not provide an arbitrary service name, URL, or API Application ID URI; use the discovery_url or registry_name selector to resolve a client ID instead. This does not override the token aud claim. Mutually exclusive with the other azuread_audience selectors.
+- `azuread_audience_discovery_url` (String) Service discovery URL passed to pubg-auth to resolve the Azure AD application client ID (ID token audience). Mutually exclusive with the other azuread_audience selectors.
+- `azuread_audience_registry_name` (String) Registry name passed to pubg-auth to resolve the Azure AD application client ID (ID token audience). Mutually exclusive with the other azuread_audience selectors. Registry configuration is owned by the CLI.
+- `spiffe_audience` (String) Audience required when using SPIFFE. Not used by Azure AD.
 
 ### Read-Only
 
 - `access_token` (String, Sensitive) JFrog access token. The returned id_token is the exact token used for this exchange. Never stored in plan or state.
-- `id_token` (String, Sensitive) Azure AD ID token or SPIRE JWT-SVID. Never stored in plan or state.
+- `id_token` (String, Sensitive) Azure AD ID token or SPIFFE JWT-SVID. Never stored in plan or state.
